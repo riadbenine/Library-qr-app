@@ -455,7 +455,73 @@ def main():
                     except Exception as e:
                         st.error(f"❌ Error processing uploaded image: {str(e)}")
 
-            if qr_img:
+        # Register User
+        elif menu == "➕ Register User":
+            st.header("Register New User")
+            
+            with st.form("register_form"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    first_name = st.text_input("First Name *")
+                    last_name = st.text_input("Last Name *")
+                    category = st.selectbox("Category *", ["Student","Teacher","Staff","Visitor","Other"])
+                    field = st.text_input("Field/Department")
+                
+                with col2:
+                    email = st.text_input("Email")
+                    phone = st.text_input("Phone *", help="10 digits starting with 0")
+                
+                submitted = st.form_submit_button("✅ Register User", type="primary")
+                
+                if submitted:
+                    try:
+                        # Validate required fields
+                        if not first_name or not first_name.strip():
+                            st.error("❌ First Name is required")
+                        elif not last_name or not last_name.strip():
+                            st.error("❌ Last Name is required")
+                        elif not phone or not phone.strip():
+                            st.error("❌ Phone is required")
+                        else:
+                            # Validate phone
+                            phone_valid, phone_error = validate_phone(phone)
+                            
+                            if not phone_valid:
+                                st.error(f"❌ {phone_error}")
+                            else:
+                                # Validate email
+                                email_valid, email_error = validate_email(email)
+                                
+                                if not email_valid:
+                                    st.error(f"❌ {email_error}")
+                                else:
+                                    # Check if user exists
+                                    exists, exists_error = check_user_exists(email, phone)
+                                    
+                                    if exists:
+                                        st.error(f"❌ {exists_error}")
+                                    else:
+                                        # Generate QR code
+                                        qr_code = f"LIB-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                                        
+                                        # Add user
+                                        success, err_msg = add_user(
+                                            qr_code, 
+                                            first_name, 
+                                            last_name, 
+                                            category, 
+                                            field or "", 
+                                            email or "", 
+                                            phone
+                                        )
+                                        
+                                        if success:
+                                            st.success("✅ User registered successfully!")
+                                            
+                                            # Generate and display QR code
+                                            qr_img = generate_qr(qr_code)
+                                            if qr_img:
                                                 st.image(qr_img, width=200, caption=f"QR Code: {qr_code}")
                                                 st.download_button(
                                                     label="📥 Download QR Code",
@@ -478,18 +544,8 @@ def main():
                 df = load_users()
                 
                 if not df.empty:
-                    # Filter out rows where all values are None or empty
-                    df_filtered = df.dropna(how='all')
-                    # Also filter rows where qr_code is None or empty
-                    df_filtered = df_filtered[df_filtered['qr_code'].notna()]
-                    df_filtered = df_filtered[df_filtered['qr_code'].astype(str).str.strip() != '']
-                    df_filtered = df_filtered[df_filtered['qr_code'].astype(str) != 'None']
-                    
-                    if not df_filtered.empty:
-                        st.dataframe(df_filtered, use_container_width=True)
-                        st.info(f"Total users: {len(df_filtered)}")
-                    else:
-                        st.info("No users registered yet.")
+                    st.dataframe(df, use_container_width=True)
+                    st.info(f"Total users: {len(df)}")
                 else:
                     st.info("No users registered yet.")
             except Exception as e:
